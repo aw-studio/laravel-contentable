@@ -2,7 +2,7 @@
 
 namespace Workbench\App\Models;
 
-use AwStudio\Contentable\Traits\Contentable;
+use AwStudio\Contentable\Traits\HasContent;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class Page extends Model
 {
     /** @use HasFactory<\Workbench\Database\Factories\PageFactory> */
-    use Contentable, HasFactory, HasUlids;
+    use HasContent, HasFactory, HasUlids;
 
     protected $fillable = [
         'slug',
