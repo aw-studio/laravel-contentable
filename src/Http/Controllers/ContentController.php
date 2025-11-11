@@ -2,8 +2,8 @@
 
 namespace AwStudio\Contentable\Http\Controllers;
 
-use AwStudio\Contentable\ContentRegistry;
 use AwStudio\Contentable\Models\Content;
+use AwStudio\Contentable\Support\ContentTypeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -14,13 +14,14 @@ class ContentController extends Controller
      */
     public function store(Request $request)
     {
+        // Base validation
         $request->validate([
             'contentable_type' => 'required|string',
             'contentable_id' => 'required|string',
             'key' => 'required|string',
+            'type' => 'required|string',
             'content' => 'required|array',
             'order' => 'sometimes|integer',
-            'type' => 'required|string',
         ]);
 
         $modelClass = $request->input('contentable_type');
@@ -28,36 +29,38 @@ class ContentController extends Controller
         $key = $request->input('key');
         $type = $request->input('type');
 
-        if (! class_exists($modelClass)) {
-            return response()->json(['error' => 'Invalid contentable_type'], 422);
+        // Resolve content type class
+        $registry = app(ContentTypeRegistry::class);
+        $typeClass = $registry->resolve($type);
+
+        if (! $typeClass) {
+            return response()->json(['error' => 'Invalid content type'], 422);
         }
 
+        // Validate nested content fields
+        $contentRules = collect($typeClass::rules())
+            ->mapWithKeys(fn ($rule, $field) => ["content.$field" => $rule])
+            ->toArray();
+
+        $request->validate($contentRules);
+
+        // Load the parent model
         $model = $modelClass::find($modelId);
         if (! $model) {
             return response()->json(['error' => 'Model not found'], 404);
         }
 
-        // Check allowed types for the key
+        // Check if the type is allowed for this key
         $allowedClasses = $model->allowedContentTypes($key);
-        $allowedTypes = array_map(fn ($class) => $class::type(), $allowedClasses);
+        $allowedTypes = array_map(fn ($c) => $c::type(), $allowedClasses);
 
-        if (! in_array($type, $allowedTypes)) {
-            return response()->json(['error' => "Block type [$type] is not allowed for key [$key]"], 422);
+        if (! in_array($type, $allowedTypes, true)) {
+            return response()->json([
+                'error' => "Block type [$type] is not allowed for key [$key]",
+            ], 422);
         }
 
-        // Resolve content type class
-        $typeClass = ContentRegistry::resolve($type);
-        if (! $typeClass) {
-            return response()->json(['error' => "Content type [$type] not registered"], 422);
-        }
-
-        // Nested validation inside 'content'
-        $rules = collect($typeClass::rules())
-            ->mapWithKeys(fn ($rule, $field) => ["content.$field" => $rule])
-            ->toArray();
-
-        $request->validate(array_merge(['content' => 'required|array'], $rules));
-
+        // Create content block
         $content = $model->content()->create([
             'key' => $key,
             'type' => $type,
@@ -74,25 +77,42 @@ class ContentController extends Controller
     public function update(Request $request, $id)
     {
         $content = Content::find($id);
+
         if (! $content) {
             return response()->json(['error' => 'Content not found'], 404);
         }
 
-        // Resolve the type class for validation
-        $typeClass = ContentRegistry::resolve($content->type);
+        // Resolve class for this content block's type
+        $typeClass = ContentTypeRegistry::resolve($content->type);
 
-        if ($typeClass) {
-            $rules = collect($typeClass::rules())
-                ->mapWithKeys(fn ($rule, $field) => ["content.$field" => $rule])
-                ->toArray();
+        // Build rules only if the content object supports validation
+        $rules = [];
 
-            $request->validate(array_merge(['content' => 'required|array'], $rules));
-        } else {
-            $request->validate(['content' => 'required|array']);
+        if ($request->has('content')) {
+            if ($typeClass) {
+                $rules['content'] = 'required|array';
+
+                $nestedRules = collect($typeClass::rules())
+                    ->mapWithKeys(fn ($rule, $field) => ["content.$field" => $rule])
+                    ->toArray();
+
+                $rules = array_merge($rules, $nestedRules);
+            } else {
+                // Fallback: content must be an array
+                $rules['content'] = 'required|array';
+            }
         }
 
+        if ($request->has('order')) {
+            $rules['order'] = 'integer';
+        }
+
+        // Validate request based on dynamically built rules
+        $request->validate($rules);
+
+        // Update content fields (only what is provided)
         $content->update([
-            'content' => $request->input('content'),
+            'content' => $request->input('content', $content->content),
             'order' => $request->input('order', $content->order),
         ]);
 

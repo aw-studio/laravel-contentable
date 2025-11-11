@@ -3,6 +3,7 @@
 namespace AwStudio\Contentable\Traits;
 
 use AwStudio\Contentable\Models\Content;
+use AwStudio\Contentable\Support\ContentTypeRegistry;
 
 trait HasContent
 {
@@ -23,6 +24,13 @@ trait HasContent
         return $this->contentFields[$key] ?? [];
     }
 
+    public function getContent(string $key)
+    {
+        $this->loadMissing('content');
+
+        return $this->content->where('key', $key)->sortBy('order')->values();
+    }
+
     /**
      * Get content blocks for a specific key.
      */
@@ -36,5 +44,25 @@ trait HasContent
         return $this->content->groupBy('key')->map(function ($items) {
             return $items->sortBy('order')->values();
         })->toArray();
+    }
+
+    public function getFields(): array
+    {
+        $registry = app(ContentTypeRegistry::class);
+        $fields = [];
+
+        foreach ($this->contentFields as $key => $classes) {
+            $fields[$key] = [];
+
+            foreach ($classes as $class) {
+                $typeClass = $registry->resolve($class::type());
+
+                if ($typeClass) {
+                    $fields[$key][$typeClass::type()] = $typeClass::fields();
+                }
+            }
+        }
+
+        return $fields;
     }
 }

@@ -30,32 +30,28 @@ class ContentableServiceProvider extends ServiceProvider
 
     protected function registerContentTypes(): void
     {
-        foreach (config('contentable.paths', []) as $path) {
+        $registry = $this->app->make(\AwStudio\Contentable\Support\ContentTypeRegistry::class);
+
+        $directories = config('contentable.content_types', []);
+
+        foreach ($directories as $path) {
             foreach (glob($path.'/*.php') as $file) {
-                // convert file path to FQCN
-                $class = $this->getClassFullNameFromFile($file);
+                $class = $this->classFromFile($file);
 
                 if (is_subclass_of($class, \AwStudio\Contentable\Contracts\ContentType::class)) {
-                    \AwStudio\Contentable\ContentRegistry::register($class);
+                    $registry->register($class);
                 }
             }
         }
     }
 
-    /**
-     * Convert a file path to fully-qualified class name.
-     */
-    protected function getClassFullNameFromFile(string $file): ?string
+    // resolve FQCN from file
+    protected function classFromFile(string $file): string
     {
-        $content = file_get_contents($file);
+        $contents = file_get_contents($file);
+        preg_match('/namespace (.*?);/', $contents, $ns);
+        preg_match('/class (\w+)/', $contents, $cls);
 
-        preg_match('/namespace\s+(.+);/', $content, $nsMatch);
-        preg_match('/class\s+(\w+)/', $content, $classMatch);
-
-        if (! isset($nsMatch[1], $classMatch[1])) {
-            return null;
-        }
-
-        return $nsMatch[1].'\\'.$classMatch[1];
+        return $ns[1].'\\'.$cls[1];
     }
 }

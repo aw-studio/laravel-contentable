@@ -20,4 +20,15 @@ class TextSection implements ContentType
     {
         return ['headline' => ''];
     }
+
+    public static function fields(): array
+    {
+        return [
+            'headline' => [
+                'label' => 'Headline',
+                'editor' => 'richtext',
+                'required' => true,
+            ],
+        ];
+    }
 }

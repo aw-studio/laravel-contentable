@@ -2,6 +2,7 @@
 
 // Helper to build route payloads
 
+use AwStudio\Contentable\Support\ContentTypeRegistry;
 use Workbench\App\Models\Page;
 
 function contentPayload($page, $key = 'hero_text', $content = ['value' => 'Test Content'], $order = 0, $type = 'Text')
@@ -20,7 +21,7 @@ it('can add a content block via store endpoint', function () {
     $page = Page::factory()->create();
 
     // Make sure the type is registered
-    \AwStudio\Contentable\ContentRegistry::register(\Workbench\App\Content\TextSection::class);
+    ContentTypeRegistry::register(\Workbench\App\Content\TextSection::class);
 
     $payload = [
         'contentable_type' => Page::class,
