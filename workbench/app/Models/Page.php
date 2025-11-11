@@ -18,8 +18,10 @@ class Page extends Model
         'is_active',
     ];
 
-    protected $content = [
-        'content',
+    protected array $contentFields = [
+        'content' => [
+            \Workbench\App\Content\TextSection::class,
+        ],
     ];
 
     public static function newFactory()

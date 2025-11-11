@@ -18,8 +18,11 @@ return new class extends Migration
             $table->string('contentable_type');
             $table->string('contentable_id');
 
-            // key to identify different content fields
+            // field key on the parent model, ex: "header", "body", "footer"
             $table->string('key');
+
+            // content block type, ex: "Text", "HeadlineText", "Image", etc.
+            $table->string('type');
 
             // content should be json to allow flexible content structures
             $table->json('content');
@@ -29,6 +32,7 @@ return new class extends Migration
 
             // indexes for faster lookups
             $table->index(['contentable_type', 'contentable_id', 'key']);
+            $table->index(['key', 'type']);
 
             $table->timestamps();
         });

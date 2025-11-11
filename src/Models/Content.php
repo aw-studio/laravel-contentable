@@ -17,6 +17,7 @@ class Content extends Model
         'contentable_type',
         'contentable_id',
         'key',
+        'type',
         'content',
         'order',
     ];

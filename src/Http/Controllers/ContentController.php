@@ -2,47 +2,13 @@
 
 namespace AwStudio\Contentable\Http\Controllers;
 
+use AwStudio\Contentable\ContentRegistry;
 use AwStudio\Contentable\Models\Content;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 class ContentController extends Controller
 {
-    /**
-     * List content blocks for a contentable model.
-     *
-     * Optional: filter by key.
-     */
-    public function index(Request $request)
-    {
-        $request->validate([
-            'contentable_type' => 'required|string',
-            'contentable_id' => 'required|string',
-            'key' => 'sometimes|string',
-        ]);
-
-        $modelClass = $request->input('contentable_type');
-
-        if (! class_exists($modelClass)) {
-            return response()->json(['error' => 'Invalid contentable_type'], 422);
-        }
-
-        $model = $modelClass::find($request->input('contentable_id'));
-        if (! $model) {
-            return response()->json(['error' => 'Model not found'], 404);
-        }
-
-        $query = $model->contents()->orderBy('order');
-
-        if ($key = $request->input('key')) {
-            $query->where('key', $key);
-        }
-
-        $contents = $query->get();
-
-        return response()->json($contents);
-    }
-
     /**
      * Add a new content block for a contentable model.
      */
@@ -54,21 +20,47 @@ class ContentController extends Controller
             'key' => 'required|string',
             'content' => 'required|array',
             'order' => 'sometimes|integer',
+            'type' => 'required|string',
         ]);
 
         $modelClass = $request->input('contentable_type');
+        $modelId = $request->input('contentable_id');
+        $key = $request->input('key');
+        $type = $request->input('type');
 
         if (! class_exists($modelClass)) {
             return response()->json(['error' => 'Invalid contentable_type'], 422);
         }
 
-        $model = $modelClass::find($request->input('contentable_id'));
+        $model = $modelClass::find($modelId);
         if (! $model) {
             return response()->json(['error' => 'Model not found'], 404);
         }
 
-        $content = $model->contents()->create([
-            'key' => $request->input('key'),
+        // Check allowed types for the key
+        $allowedClasses = $model->allowedContentTypes($key);
+        $allowedTypes = array_map(fn ($class) => $class::type(), $allowedClasses);
+
+        if (! in_array($type, $allowedTypes)) {
+            return response()->json(['error' => "Block type [$type] is not allowed for key [$key]"], 422);
+        }
+
+        // Resolve content type class
+        $typeClass = ContentRegistry::resolve($type);
+        if (! $typeClass) {
+            return response()->json(['error' => "Content type [$type] not registered"], 422);
+        }
+
+        // Nested validation inside 'content'
+        $rules = collect($typeClass::rules())
+            ->mapWithKeys(fn ($rule, $field) => ["content.$field" => $rule])
+            ->toArray();
+
+        $request->validate(array_merge(['content' => 'required|array'], $rules));
+
+        $content = $model->content()->create([
+            'key' => $key,
+            'type' => $type,
             'content' => $request->input('content'),
             'order' => $request->input('order', 0),
         ]);
@@ -81,14 +73,22 @@ class ContentController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'content' => 'required|array',
-            'order' => 'sometimes|integer',
-        ]);
-
         $content = Content::find($id);
         if (! $content) {
             return response()->json(['error' => 'Content not found'], 404);
+        }
+
+        // Resolve the type class for validation
+        $typeClass = ContentRegistry::resolve($content->type);
+
+        if ($typeClass) {
+            $rules = collect($typeClass::rules())
+                ->mapWithKeys(fn ($rule, $field) => ["content.$field" => $rule])
+                ->toArray();
+
+            $request->validate(array_merge(['content' => 'required|array'], $rules));
+        } else {
+            $request->validate(['content' => 'required|array']);
         }
 
         $content->update([
@@ -116,11 +116,6 @@ class ContentController extends Controller
 
     /**
      * Reorder multiple content blocks for a contentable model.
-     *
-     * Accepts an array of IDs in the desired order:
-     * [
-     *   3, 1, 5, 2
-     * ]
      */
     public function reorder(Request $request)
     {
@@ -131,20 +126,24 @@ class ContentController extends Controller
         ]);
 
         $modelClass = $request->input('contentable_type');
+        $modelId = $request->input('contentable_id');
 
         if (! class_exists($modelClass)) {
             return response()->json(['error' => 'Invalid contentable_type'], 422);
         }
 
-        $model = $modelClass::find($request->input('contentable_id'));
+        $model = $modelClass::find($modelId);
         if (! $model) {
             return response()->json(['error' => 'Model not found'], 404);
         }
 
         foreach ($request->input('order') as $index => $id) {
-            $content = Content::find($id);
-            if ($content && $content->contentable_id == $model->id && $content->contentable_type == $modelClass) {
-                $content->update(['order' => $index]);
+            $block = Content::find($id);
+            if ($block
+                && $block->contentable_id == $model->id
+                && $block->contentable_type == $modelClass
+            ) {
+                $block->update(['order' => $index]);
             }
         }
 

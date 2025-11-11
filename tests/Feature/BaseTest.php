@@ -8,10 +8,11 @@ it('can create a content block for a contentable model', function () {
     $page = Page::factory()->create();
 
     // Add a content block
-    $content = $page->contents()->create([
+    $content = $page->content()->create([
         'key' => 'hero_text',
         'content' => ['value' => 'Welcome to my site!'],
         'order' => 0,
+        'type' => 'Text',
     ]);
 
     // Assertions

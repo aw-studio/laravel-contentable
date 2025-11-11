@@ -2,19 +2,23 @@
 
 namespace AwStudio\Contentable\Traits;
 
-use AwStudio\Contentable\Models\Content;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 trait Contentable
 {
-    public function contents(): MorphMany
+    public function content(): MorphMany
     {
-        return $this->morphMany(Content::class, 'contentable')->orderBy('order');
+        return $this->morphMany(\AwStudio\Contentable\Models\Content::class, 'contentable')
+            ->orderBy('order');
     }
 
-    // Optional helpers to filter by key
-    public function contentByKey(string $key)
+    public function getContent(string $key)
     {
-        return $this->contents()->where('key', $key)->get();
+        return $this->content()->where('key', $key)->orderBy('order');
+    }
+
+    public function allowedContentTypes(string $key): array
+    {
+        return $this->contentFields[$key] ?? [];
     }
 }

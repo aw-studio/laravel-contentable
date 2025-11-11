@@ -4,9 +4,9 @@ use AwStudio\Contentable\Http\Controllers\ContentController;
 use Illuminate\Support\Facades\Route;
 
 $middleware = config('contentable.middleware', ['web']);
+$prefix = config('contentable.prefix', 'content');
 
-Route::prefix('content')->middleware($middleware)->group(function () {
-    Route::get('/', [ContentController::class, 'index']);
+Route::prefix($prefix)->middleware($middleware)->group(function () {
     Route::post('/', [ContentController::class, 'store']);
     Route::put('/{id}', [ContentController::class, 'update']);
     Route::delete('/{id}', [ContentController::class, 'destroy']);
