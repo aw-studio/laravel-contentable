@@ -23,8 +23,8 @@ return [
      |--------------------------------------------------------------------------
      |
      */
-    'paths' => [
-        app_path('Content'), // default location for content type classes
+    'content_types' => [
+        app_path('Content'),
     ],
 
     'default_order_column' => 'order',

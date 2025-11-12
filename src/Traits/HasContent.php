@@ -21,7 +21,7 @@ trait HasContent
      */
     public function allowedContentTypes(string $key): array
     {
-        return $this->contentFields[$key] ?? [];
+        return $this->blocks[$key] ?? [];
     }
 
     public function getContent(string $key)
@@ -39,19 +39,19 @@ trait HasContent
         return $this->content()->where('key', $key)->orderBy('order');
     }
 
-    public function groupedContent(): array
+    public function getBlocks(): array
     {
         return $this->content->groupBy('key')->map(function ($items) {
             return $items->sortBy('order')->values();
         })->toArray();
     }
 
-    public function getFields(): array
+    public function getBlockDefinitions(): array
     {
         $registry = app(ContentTypeRegistry::class);
         $fields = [];
 
-        foreach ($this->contentFields as $key => $classes) {
+        foreach ($this->blocks as $key => $classes) {
             $fields[$key] = [];
 
             foreach ($classes as $class) {

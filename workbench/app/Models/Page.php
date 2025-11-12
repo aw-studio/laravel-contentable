@@ -18,7 +18,7 @@ class Page extends Model
         'is_active',
     ];
 
-    protected array $contentFields = [
+    protected array $blocks = [
         'content' => [
             \Workbench\App\Content\TextSection::class,
         ],
