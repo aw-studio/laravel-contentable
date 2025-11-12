@@ -140,31 +140,12 @@ class ContentController extends Controller
     public function reorder(Request $request)
     {
         $request->validate([
-            'contentable_type' => 'required|string',
-            'contentable_id' => 'required|string',
-            'order' => 'required|array',
+            'ids' => 'required|array',
+            'ids.*' => 'integer|distinct|exists:content,id',
         ]);
 
-        $modelClass = $request->input('contentable_type');
-        $modelId = $request->input('contentable_id');
-
-        if (! class_exists($modelClass)) {
-            return response()->json(['error' => 'Invalid contentable_type'], 422);
-        }
-
-        $model = $modelClass::find($modelId);
-        if (! $model) {
-            return response()->json(['error' => 'Model not found'], 404);
-        }
-
-        foreach ($request->input('order') as $index => $id) {
-            $block = Content::find($id);
-            if ($block
-                && $block->contentable_id == $model->id
-                && $block->contentable_type == $modelClass
-            ) {
-                $block->update(['order' => $index]);
-            }
+        foreach ($request->input('ids') as $index => $id) {
+            Content::where('id', $id)->update(['order' => $index]);
         }
 
         return response()->json(['message' => 'Content reordered']);

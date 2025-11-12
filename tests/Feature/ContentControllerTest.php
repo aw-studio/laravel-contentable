@@ -82,21 +82,20 @@ it('can delete a content block', function () {
 it('can reorder multiple content blocks', function () {
     $page = Page::factory()->create();
     $block1 = $page->content()->create(['key' => 'text', 'content' => ['value' => 'A'], 'order' => 0, 'type' => 'Text']);
-    $block2 = $page->content()->create(['key' => 'text', 'content' => ['value' => 'B'], 'order' => 1, 'type' => 'Text']);
+    $block2 = $page->content()->create(['key' => 'text', 'content' => ['value' => 'B'], 'order' => 1, 'type' => 'OtherType']);
     $block3 = $page->content()->create(['key' => 'text', 'content' => ['value' => 'C'], 'order' => 2, 'type' => 'Text']);
+    $block4 = $page->content()->create(['key' => 'text', 'content' => ['value' => 'C'], 'order' => 2, 'type' => 'Text']);
 
     $payload = [
-        'contentable_type' => Page::class,
-        'contentable_id' => $page->id,
-        'order' => [$block3->id, $block1->id, $block2->id],
+        'ids' => [$block3->id, $block1->id, $block4->id, $block2->id],
     ];
 
     $response = $this->postJson('/content/reorder', $payload);
     $response->assertOk()->assertJsonFragment(['message' => 'Content reordered']);
 
-    $orders = $page->content()->pluck('order', 'id')->toArray();
+    $this->assertDatabaseHas('content', ['id' => $block3->id, 'order' => 0]);
+    $this->assertDatabaseHas('content', ['id' => $block1->id, 'order' => 1]);
+    $this->assertDatabaseHas('content', ['id' => $block4->id, 'order' => 2]);
+    $this->assertDatabaseHas('content', ['id' => $block2->id, 'order' => 3]);
 
-    expect($orders[$block3->id])->toBe(0);
-    expect($orders[$block1->id])->toBe(1);
-    expect($orders[$block2->id])->toBe(2);
 });
